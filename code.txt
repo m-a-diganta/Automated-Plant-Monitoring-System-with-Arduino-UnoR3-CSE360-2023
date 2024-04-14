@@ -1,0 +1,93 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+LiquidCrystal_I2C lcd(0x27, 16, 2); // Set the LCD address to 0x27 for a 16 chars and 2 line display
+
+const int moisturePin = A0;      // Pin connected to the moisture sensor
+const int relayPin = 7;          // Pin connected to the relay module control pin
+const int lm35Pin = A2;          // Pin connected to the LM35 sensor
+const int mq2AnalogPin = A1;     // Pin connected to the MQ2 sensor analog output
+const int buzzerPin = 4;         // Pin connected to the buzzer (long leg)
+const int ldrPin = A3;           // Pin connected to the LDR
+const int ledPin = 6;            // Pin connected to the LED
+
+void setup() {
+  lcd.init();                     // Initialize LCD
+  lcd.backlight();                // Turn on backlight
+  lcd.clear();                    // Clear the LCD screen
+
+  pinMode(relayPin, OUTPUT);      // Set relay pin as output
+  pinMode(buzzerPin, OUTPUT);     // Set buzzer pin as output
+  pinMode(ledPin, OUTPUT);        // Set LED pin as output
+
+  // Initialize serial communication at 9600 baud rate
+  Serial.begin(9600);
+}
+
+void loop() { 
+  int moistureValue = analogRead(moisturePin); // Read the moisture sensor value
+  int mappedMoisture = map(moistureValue, 0, 1023, 0, 100); // Map sensor value to percentage
+
+  int lm35Value = analogRead(lm35Pin); // Read the LM35 sensor value
+  float temperatureC = (lm35Value / 10.0); // LM35 outputs 10 mV per degree Celsius
+
+  int mq2Value = analogRead(mq2AnalogPin); // Read the MQ2 sensor analog value
+
+  int ldrValue = analogRead(ldrPin); // Read the LDR value
+
+  lcd.clear(); // Clear the LCD screen
+  lcd.setCursor(0, 0); // Set cursor to the first column and first row
+  lcd.print("M: ");
+  lcd.print(mappedMoisture);
+  lcd.print("% T: ");
+  lcd.print(temperatureC, 1); // Display temperature with one decimal point
+  lcd.print("C");
+
+  lcd.setCursor(0, 1); // Set cursor to the second row
+  lcd.print("Mtr: ");
+  if (mappedMoisture < 90) {
+    digitalWrite(relayPin, LOW); // Turn on the relay
+    lcd.print("On ");
+  } else {
+    digitalWrite(relayPin, HIGH); // Turn off the relay
+    lcd.print("Off ");
+  }
+
+  lcd.print("Gas:");
+  lcd.print(mq2Value); // Display only MQ2 analog value
+
+  // Check if MQ2 value crosses a certain threshold (e.g., 200)
+  if (mq2Value < 200) {
+    digitalWrite(buzzerPin, HIGH); // Activate the buzzer
+    lcd.print(" Buzzer: On ");
+  } else {
+    digitalWrite(buzzerPin, LOW); // Deactivate the buzzer
+    lcd.print(" Buzzer: Off");
+  }
+
+  // Check LDR value
+  lcd.print(" LDR: ");
+  if (ldrValue < 900) {
+    digitalWrite(ledPin, HIGH); // Turn on the LED
+    lcd.print("LED: On");
+  } else {
+    digitalWrite(ledPin, LOW); // Turn off the LED
+    lcd.print("LED: Off");
+  }
+
+  Serial.print("Moisture: ");
+  Serial.print(mappedMoisture);
+  Serial.println("%");
+
+  Serial.print("Temperature: ");
+  Serial.print(temperatureC);
+  Serial.println(" C");
+
+  Serial.print("Gas Analog: ");
+  Serial.print(mq2Value);
+
+  Serial.print(" LDR: ");
+  Serial.println(ldrValue);
+
+  delay(1000); // Delay before taking the next reading
+}
